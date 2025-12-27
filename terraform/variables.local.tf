@@ -41,7 +41,7 @@ locals {
       }
 
       initialize_params = {
-        size = 10
+        size = 40
       }
 
       network_interface = {
@@ -213,7 +213,7 @@ locals {
 
   cloud_init_templates = {
     (local.hostnames.bastion)   = templatefile("${var.templates_dir}/cloud-init/bastion.yaml.tftpl", { packages = [] })
-    (local.hostnames.stub)      = templatefile("${var.templates_dir}/cloud-init/default.yaml.tftpl", { packages = ["python3", "python3-pip", "iproute2"] })
+    (local.hostnames.stub)      = templatefile("${var.templates_dir}/cloud-init/stub.yaml.tftpl", { packages = ["python3", "python3-pip", "iproute2"] })
     (local.hostnames.recursive) = templatefile("${var.templates_dir}/cloud-init/recursive-resolver.yaml.tftpl", { packages = ["python3", "python3-pip"] })
     (local.hostnames.root)      = templatefile("${var.templates_dir}/cloud-init/default.yaml.tftpl", { packages = ["python3", "python3-pip"] })
     (local.hostnames.tld)       = templatefile("${var.templates_dir}/cloud-init/default.yaml.tftpl", { packages = ["python3", "python3-pip"] })
