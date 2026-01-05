@@ -53,7 +53,7 @@
 
     - name: "AUTH : create named.conf"
       ansible.builtin.template:
-        src: "templates/auth/auth.conf.j2"
+        src: "{{ templates_path }}/authoritative/auth.conf.j2"
         dest: "{{ bind_path }}/named.conf"
         owner: root
         group: bind
@@ -75,12 +75,12 @@
         group: bind
         mode: '0644'
       loop:
-        - { src: "templates/auth/db.auth.j2", dest: "{{ zone_path }}/db.auth" }
-        - { src: "templates/common/db.root.hints.j2", dest: "{{ zone_path }}/db.root.hints" }
-        - { src: "templates/common/db.local.j2", dest: "{{ zone_path }}/db.local" }
-        - { src: "templates/common/db.0.j2", dest: "{{ zone_path }}/db.0" }
-        - { src: "templates/common/db.127.j2", dest: "{{ zone_path }}/db.127" }
-        - { src: "templates/common/db.255.j2", dest: "{{ zone_path }}/db.255" }
+        - { src: "{{ templates_path }}/authoritative/db.auth.j2", dest: "{{ zone_path }}/db.auth" }
+        - { src: "{{ templates_path }}/common/db.root.hints.j2", dest: "{{ zone_path }}/db.root.hints" }
+        - { src: "{{ templates_path }}/common/db.local.j2", dest: "{{ zone_path }}/db.local" }
+        - { src: "{{ templates_path }}/common/db.0.j2", dest: "{{ zone_path }}/db.0" }
+        - { src: "{{ templates_path }}/common/db.127.j2", dest: "{{ zone_path }}/db.127" }
+        - { src: "{{ templates_path }}/common/db.255.j2", dest: "{{ zone_path }}/db.255" }
 
     - name: "AUTH : check named.conf"
       ansible.builtin.command:
@@ -95,6 +95,22 @@
       register: zone_status
       failed_when: zone_status.rc != 0
       changed_when: false
+
+    - name: "AUTH : create logs dir"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}"
+        state: directory
+        owner: root
+        group: bind
+        mode: '0755'
+
+    - name: "AUTH : create logs file"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}/{{ bind_query_logs_file }}"
+        state: touch
+        owner: bind
+        group: bind
+        mode: '0644'
 
     - name: "AUTH : reload and restart service"
       ansible.builtin.systemd:

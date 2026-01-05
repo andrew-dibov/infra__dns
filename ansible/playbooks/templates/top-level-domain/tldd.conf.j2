@@ -14,7 +14,7 @@ options {
 
 zone "{{ zone }}" {
   type master;
-  file "{{ zone_path }}/db.auth";
+  file "{{ zone_path }}/db.tldd";
 
   allow-transfer { none; };
   allow-update { none; };
@@ -43,4 +43,17 @@ zone "127.in-addr.arpa" {
 zone "255.in-addr.arpa" {
   type master;
   file "{{ zone_path }}/db.255";
+};
+
+logging {
+  channel query_log {
+    file "{{ bind_logs_path }}/{{ bind_query_logs_file }}" versions 10 size 50m;
+    severity info;
+    print-time yes;
+    print-category yes;
+    print-severity yes;
+  };
+    
+  category queries { query_log; };
+  category query-errors { query_log; };
 };

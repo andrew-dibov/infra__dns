@@ -68,5 +68,7 @@ resource "local_file" "ansible_variables" {
 
     ho_a_ip = yandex_compute_instance.hosts["${local.hostnames.ho_a}"].network_interface[0].ip_address
     ho_b_ip = yandex_compute_instance.hosts["${local.hostnames.ho_b}"].network_interface[0].ip_address
+
+    prel_ip = yandex_compute_instance.hosts["${local.hostnames.prel}"].network_interface[0].ip_address
   })
 }

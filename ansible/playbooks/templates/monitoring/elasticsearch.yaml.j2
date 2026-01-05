@@ -1,0 +1,22 @@
+cluster.name: "monitoring"
+network.host: 0.0.0.0
+node.name: "es01"
+
+xpack.ilm.enabled: true
+
+setup.ilm.policy_name: "6h_retention"
+setup.ilm.policy_file: "/usr/share/elasticsearch/config/ilm_policy.json"
+
+xpack.security.enabled: false
+xpack.monitoring.enabled: false
+xpack.watcher.enabled: false
+xpack.ml.enabled: false
+xpack.graph.enabled: false
+
+indices.fielddata.cache.size: 10%
+indices.breaker.fielddata.limit: 30%
+indices.breaker.request.limit: 20%
+indices.breaker.total.limit: 70%
+
+bootstrap.memory_lock: false
+discovery.type: single-node

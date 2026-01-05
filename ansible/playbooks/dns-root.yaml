@@ -7,6 +7,7 @@
     - "../variables/terraform.yaml"
 
   vars:
+    role: "dns-root"
     zone: "."
     soa_mname: "ns.root."
     soa_rname: "admin.root."
@@ -46,7 +47,7 @@
 
     - name: "ROOT : create named.conf"
       ansible.builtin.template:
-        src: "templates/root/root.conf.j2"
+        src: "{{ templates_path }}/root/root.conf.j2"
         dest: "{{ bind_path }}/named.conf"
         owner: root
         group: bind
@@ -68,11 +69,11 @@
         group: bind
         mode: '0644'
       loop:
-        - { src: "templates/root/db.root.j2", dest: "{{ zone_path }}/db.root" }
-        - { src: "templates/common/db.local.j2", dest: "{{ zone_path }}/db.local" }
-        - { src: "templates/common/db.0.j2", dest: "{{ zone_path }}/db.0" }
-        - { src: "templates/common/db.127.j2", dest: "{{ zone_path }}/db.127" }
-        - { src: "templates/common/db.255.j2", dest: "{{ zone_path }}/db.255" }
+        - { src: "{{ templates_path }}/root/db.root.j2", dest: "{{ zone_path }}/db.root" }
+        - { src: "{{ templates_path }}/common/db.local.j2", dest: "{{ zone_path }}/db.local" }
+        - { src: "{{ templates_path }}/common/db.0.j2", dest: "{{ zone_path }}/db.0" }
+        - { src: "{{ templates_path }}/common/db.127.j2", dest: "{{ zone_path }}/db.127" }
+        - { src: "{{ templates_path }}/common/db.255.j2", dest: "{{ zone_path }}/db.255" }
 
     - name: "ROOT : check named.conf"
       ansible.builtin.command:
@@ -87,6 +88,22 @@
       register: zone_status
       failed_when: zone_status.rc != 0
       changed_when: false
+
+    - name: "ROOT : create logs dir"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}"
+        state: directory
+        owner: root
+        group: bind
+        mode: '0755'
+
+    - name: "ROOT : create logs file"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}/{{ bind_query_logs_file }}"
+        state: touch
+        owner: bind
+        group: bind
+        mode: '0640'
 
     - name: "ROOT : reload and restart service"
       ansible.builtin.systemd:

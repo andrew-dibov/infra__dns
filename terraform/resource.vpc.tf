@@ -41,6 +41,69 @@ resource "yandex_vpc_security_group" "bastion" {
     port           = 22
     v4_cidr_blocks = yandex_vpc_subnet.subnet.v4_cidr_blocks
   }
+
+  egress {
+    protocol       = "UDP"
+    port           = 53
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 80
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 443
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "yandex_vpc_security_group" "monitoring" {
+  network_id = yandex_vpc_network.net.id
+  name       = var.security_group_monitoring_name
+
+  ingress {
+    protocol          = "TCP"
+    port              = 22
+    security_group_id = yandex_vpc_security_group.bastion.id
+  }
+
+  ingress {
+    protocol       = "TCP"
+    port           = 5601
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    protocol       = "ANY"
+    v4_cidr_blocks = yandex_vpc_subnet.subnet.v4_cidr_blocks
+  }
+
+  egress {
+    protocol       = "UDP"
+    port           = 53
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 80
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 443
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # egress {
+  #   protocol          = "ANY"
+  #   security_group_id = yandex_vpc_security_group.internal.id
+  # }
 }
 
 resource "yandex_vpc_security_group" "internal" {
@@ -65,19 +128,25 @@ resource "yandex_vpc_security_group" "internal" {
     v4_cidr_blocks = yandex_vpc_subnet.subnet.v4_cidr_blocks
   }
 
-  ingress {
-    protocol       = "ANY"
+  # ingress {
+  #   protocol          = "ANY"
+  #   security_group_id = yandex_vpc_security_group.monitoring.id
+  # }
+
+  egress {
+    protocol       = "UDP"
+    port           = 53
+    v4_cidr_blocks = yandex_vpc_subnet.subnet.v4_cidr_blocks
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 53
     v4_cidr_blocks = yandex_vpc_subnet.subnet.v4_cidr_blocks
   }
 
   egress {
     protocol       = "UDP"
-    port           = 53
-    v4_cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    protocol       = "TCP"
     port           = 53
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
@@ -92,5 +161,10 @@ resource "yandex_vpc_security_group" "internal" {
     protocol       = "TCP"
     port           = 443
     v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol          = "ANY"
+    security_group_id = yandex_vpc_security_group.monitoring.id
   }
 }

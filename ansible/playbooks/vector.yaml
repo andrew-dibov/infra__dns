@@ -1,0 +1,45 @@
+---
+- name: "VCTR"
+  become: true
+  hosts:
+    - root
+    - tldd
+    - au-a
+    - au-b
+    - recr
+  vars_files:
+    - "../variables/common.yaml"
+    - "../variables/terraform.yaml"
+
+  tasks:
+    - name: "VCTR : add repo"
+      ansible.builtin.shell:
+        cmd: bash -c "$(curl -L https://setup.vector.dev)"
+      changed_when: false
+
+    - name: "VCTR : install"
+      ansible.builtin.apt:
+        state: present
+        name: vector
+
+    - name: "VCTR : create vector.yaml"
+      ansible.builtin.template:
+        src: "{{ templates_path }}/common/vector.yaml.j2"
+        dest: "{{ vector_path }}/vector.yaml"
+        owner: vector
+        group: vector
+        mode: '0644'
+
+    - name: "VCTR : set permissions"
+      ansible.builtin.file:
+        dest: "{{ bind_logs_path }}/{{ bind_query_logs_file }}"
+        owner: bind
+        group: vector
+        mode: '0644'
+
+    - name: "VCTR : reload and restart service"
+      ansible.builtin.systemd:
+        name: vector
+        state: restarted
+        enabled: true
+        daemon_reload: true

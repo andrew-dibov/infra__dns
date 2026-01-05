@@ -1,0 +1,116 @@
+---
+- name: "TLDD"
+  become: true
+  hosts: tldd
+  vars_files:
+    - "../variables/common.yaml"
+    - "../variables/terraform.yaml"
+
+  vars:
+    zone: "domain"
+    root_zone: "."
+    root_ns: "ns.root."
+    soa_mname: "ns.domain."
+    soa_rname: "admin.domain."
+    auth_domain: "subdomain"
+    auth_ns_server_a: "ns.auth-a.subdomain"
+    auth_ns_server_b: "ns.auth-b.subdomain"
+
+  tasks:
+    - name: "TLDD : update"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: "TLDD : install"
+      ansible.builtin.apt:
+        state: present
+        name:
+          - bind9
+          - bind9utils
+          - dnsutils
+
+    - name: "TLDD : stop service"
+      ansible.builtin.systemd:
+        name: bind9
+        state: stopped
+
+    - name: "TLDD : remove config dir"
+      ansible.builtin.file:
+        path: "{{ bind_path }}"
+        state: absent
+
+    - name: "TLDD : create config dir"
+      ansible.builtin.file:
+        path: "{{ bind_path }}"
+        state: directory
+        owner: root
+        group: bind
+        mode: '0755'
+
+    - name: "TLDD : create named.conf"
+      ansible.builtin.template:
+        src: "{{ templates_path }}/top-level-domain/tldd.conf.j2"
+        dest: "{{ bind_path }}/named.conf"
+        owner: root
+        group: bind
+        mode: '0644'
+
+    - name: "TLDD : create zones dir"
+      ansible.builtin.file:
+        path: "{{ zone_path }}"
+        state: directory
+        owner: bind
+        group: bind
+        mode: '0755'
+
+    - name: "TLDD : create zones"
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: bind
+        mode: '0644'
+      loop:
+        - { src: "{{ templates_path }}/top-level-domain/db.tldd.j2", dest: "{{ zone_path }}/db.tldd" }
+        - { src: "{{ templates_path }}/common/db.root.hints.j2", dest: "{{ zone_path }}/db.root.hints" }
+        - { src: "{{ templates_path }}/common/db.local.j2", dest: "{{ zone_path }}/db.local" }
+        - { src: "{{ templates_path }}/common/db.0.j2", dest: "{{ zone_path }}/db.0" }
+        - { src: "{{ templates_path }}/common/db.127.j2", dest: "{{ zone_path }}/db.127" }
+        - { src: "{{ templates_path }}/common/db.255.j2", dest: "{{ zone_path }}/db.255" }
+
+    - name: "TLDD : check named.conf"
+      ansible.builtin.command:
+        cmd: "named-checkconf {{ bind_path }}/named.conf"
+      register: conf_status
+      failed_when: conf_status.rc != 0
+      changed_when: false
+
+    - name: "TLDD : check db.tld"
+      ansible.builtin.command:
+        cmd: "named-checkzone {{ zone }} {{ zone_path }}/db.tldd"
+      register: zone_status
+      failed_when: zone_status.rc != 0
+      changed_when: false
+
+    - name: "TLDD : create logs dir"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}"
+        state: directory
+        owner: root
+        group: bind
+        mode: '0755'
+
+    - name: "TLDD : create logs file"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}/{{ bind_query_logs_file }}"
+        state: touch
+        owner: bind
+        group: bind
+        mode: '0644'
+
+    - name: "TLDD : reload and restart service"
+      ansible.builtin.systemd:
+        name: bind9
+        state: restarted
+        enabled: true
+        daemon_reload: true

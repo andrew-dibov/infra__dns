@@ -1,0 +1,50 @@
+input {
+  tcp {
+    port => 5044
+    codec => plain
+  }
+}
+
+filter {
+  dissect {
+    mapping => {
+      "message" => "%{date} %{time}.%{ms} %{category}: %{level}: client %{ref} %{client_ip}#%{port} (%{domain}): query: %{query} %{class} %{type} %{flags}"
+    }
+  }
+  
+  mutate {
+    convert => {
+      "port" => "integer"
+    }
+  }
+  
+  mutate {
+    add_field => { "timestamp_str" => "%{date} %{time}.%{ms}" }
+  }
+  
+  date {
+    match => [ "timestamp_str", "dd-MMM-yyyy HH:mm:ss.SSS" ]
+    target => "@timestamp"
+    timezone => "UTC"
+  }
+  
+  geoip {
+    source => "client_ip"
+    target => "geo"
+  }
+  
+  mutate {
+    remove_field => [ "timestamp_str", "ref", "date", "time", "ms" ]
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "dns-queries-%{+YYYY.MM.dd}"
+    
+    template => "/usr/share/logstash/templates/dns-template.json"
+    template_name => "dns-queries-template"
+    template_overwrite => true
+  }
+}

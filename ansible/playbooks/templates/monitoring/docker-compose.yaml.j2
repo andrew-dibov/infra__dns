@@ -1,0 +1,57 @@
+services:
+  elasticsearch:
+    image: {{ elasticsearch_img }}
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - indices.lifecycle.poll_interval=1m
+    volumes:
+      - {{ elastic_data_dir }}:/usr/share/elasticsearch/data
+      - {{ elastic_conf_dir }}/elasticsearch.yaml:/usr/share/elasticsearch/config/elasticsearch.yaml
+    ports:
+      - "9200:9200"
+    networks:
+      - monitoring
+    restart: unless-stopped
+  
+  logstash:
+    image: {{ logstash_img }}
+    container_name: logstash
+    volumes:
+      - {{ elastic_conf_dir }}/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - {{ elastic_templates_dir }}:/usr/share/logstash/templates:ro
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+      - XPACK_MONITORING_ENABLED=false
+    ports:
+      - "5044:5044"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+    depends_on:
+      - elasticsearch
+  
+  kibana:
+    image: {{ kibana_img }}
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+    depends_on:
+      - elasticsearch
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  elasticsearch_data:
+    driver: local

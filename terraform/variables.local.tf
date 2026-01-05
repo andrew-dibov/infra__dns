@@ -9,6 +9,7 @@ locals {
     au_b = "dns-authoritative-b"
     ho_a = "host-www-a"
     ho_b = "host-www-b"
+    prel = "monitoring"
   }
   hosts = {
     (local.hostnames.bast) = {
@@ -209,11 +210,34 @@ locals {
 
       ansible_role = "ho-b"
     },
+    (local.hostnames.prel) = {
+      resources = {
+        cores         = 4
+        memory        = 4
+        core_fraction = 20
+      }
+
+      initialize_params = {
+        size = 20
+      }
+
+      network_interface = {
+        nat                = true
+        security_group_ids = [yandex_vpc_security_group.monitoring.id]
+      }
+
+      scheduling_policy = {
+        preemptible = true
+      }
+
+      ansible_role = "prel" # change to prel
+    },
   }
 
   cloud_init_templates = {
     (local.hostnames.bast) = templatefile("${var.templates_dir}/cloud-config/bastion.tftpl", { pkgs = [] })
-    (local.hostnames.stub) = templatefile("${var.templates_dir}/cloud-config/stub.tftpl", { pkgs= ["python3", "python3-pip", "ca-certificates", "curl"] })
+    (local.hostnames.stub) = templatefile("${var.templates_dir}/cloud-config/docker.tftpl", { pkgs = ["python3", "python3-pip", "ca-certificates", "curl"] })
+    (local.hostnames.prel) = templatefile("${var.templates_dir}/cloud-config/docker.tftpl", { pkgs = ["python3", "python3-pip", "ca-certificates", "curl"] })
     (local.hostnames.recr) = templatefile("${var.templates_dir}/cloud-config/default.tftpl", { pkgs = ["python3", "python3-pip"] })
     (local.hostnames.root) = templatefile("${var.templates_dir}/cloud-config/default.tftpl", { pkgs = ["python3", "python3-pip"] })
     (local.hostnames.tldd) = templatefile("${var.templates_dir}/cloud-config/default.tftpl", { pkgs = ["python3", "python3-pip"] })

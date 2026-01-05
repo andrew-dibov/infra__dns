@@ -1,27 +1,21 @@
 ---
-- name: "TLDD"
+- name: "RECR"
   become: true
-  hosts: tldd
+  hosts: recr
   vars_files:
     - "../variables/common.yaml"
     - "../variables/terraform.yaml"
 
   vars:
-    zone: "domain"
     root_zone: "."
     root_ns: "ns.root."
-    soa_mname: "ns.domain."
-    soa_rname: "admin.domain."
-    auth_domain: "subdomain"
-    auth_ns_server_a: "ns.auth-a.subdomain"
-    auth_ns_server_b: "ns.auth-b.subdomain"
 
   tasks:
-    - name: "TLDD : update"
+    - name: "RECR : update"
       ansible.builtin.apt:
         update_cache: true
 
-    - name: "TLDD : install"
+    - name: "RECR : install"
       ansible.builtin.apt:
         state: present
         name:
@@ -29,17 +23,17 @@
           - bind9utils
           - dnsutils
 
-    - name: "TLDD : stop service"
+    - name: "RECR : stop service"
       ansible.builtin.systemd:
         name: bind9
         state: stopped
 
-    - name: "TLDD : remove config dir"
+    - name: "RECR : remove config dir"
       ansible.builtin.file:
         path: "{{ bind_path }}"
         state: absent
 
-    - name: "TLDD : create config dir"
+    - name: "RECR : create config dir"
       ansible.builtin.file:
         path: "{{ bind_path }}"
         state: directory
@@ -47,15 +41,15 @@
         group: bind
         mode: '0755'
 
-    - name: "TLDD : create named.conf"
+    - name: "RECR : create named.conf"
       ansible.builtin.template:
-        src: "templates/tldd/tldd.conf.j2"
+        src: "{{ templates_path }}/recursive/recr.conf.j2"
         dest: "{{ bind_path }}/named.conf"
         owner: root
         group: bind
         mode: '0644'
 
-    - name: "TLDD : create zones dir"
+    - name: "RECR : create zones dir"
       ansible.builtin.file:
         path: "{{ zone_path }}"
         state: directory
@@ -63,7 +57,7 @@
         group: bind
         mode: '0755'
 
-    - name: "TLDD : create zones"
+    - name: "RECR : create zones"
       ansible.builtin.template:
         src: "{{ item.src }}"
         dest: "{{ item.dest }}"
@@ -71,28 +65,36 @@
         group: bind
         mode: '0644'
       loop:
-        - { src: "templates/tldd/db.tldd.j2", dest: "{{ zone_path }}/db.tldd" }
-        - { src: "templates/common/db.root.hints.j2", dest: "{{ zone_path }}/db.root.hints" }
-        - { src: "templates/common/db.local.j2", dest: "{{ zone_path }}/db.local" }
-        - { src: "templates/common/db.0.j2", dest: "{{ zone_path }}/db.0" }
-        - { src: "templates/common/db.127.j2", dest: "{{ zone_path }}/db.127" }
-        - { src: "templates/common/db.255.j2", dest: "{{ zone_path }}/db.255" }
+        - { src: "{{ templates_path }}/common/db.root.hints.j2", dest: "{{ zone_path }}/db.root.hints" }
+        - { src: "{{ templates_path }}/common/db.local.j2", dest: "{{ zone_path }}/db.local" }
+        - { src: "{{ templates_path }}/common/db.0.j2", dest: "{{ zone_path }}/db.0" }
+        - { src: "{{ templates_path }}/common/db.127.j2", dest: "{{ zone_path }}/db.127" }
+        - { src: "{{ templates_path }}/common/db.255.j2", dest: "{{ zone_path }}/db.255" }
 
-    - name: "TLDD : check named.conf"
+    - name: "RECR : check named.conf"
       ansible.builtin.command:
         cmd: "named-checkconf {{ bind_path }}/named.conf"
       register: conf_status
       failed_when: conf_status.rc != 0
       changed_when: false
 
-    - name: "TLDD : check db.tld"
-      ansible.builtin.command:
-        cmd: "named-checkzone {{ zone }} {{ zone_path }}/db.tldd"
-      register: zone_status
-      failed_when: zone_status.rc != 0
-      changed_when: false
+    - name: "RECR : create logs dir"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}"
+        state: directory
+        owner: root
+        group: bind
+        mode: '0755'
 
-    - name: "TLDD : reload and restart service"
+    - name: "RECR : create logs file"
+      ansible.builtin.file:
+        path: "{{ bind_logs_path }}/{{ bind_query_logs_file }}"
+        state: touch
+        owner: bind
+        group: bind
+        mode: '0644'
+
+    - name: "RECR : reload and restart service"
       ansible.builtin.systemd:
         name: bind9
         state: restarted

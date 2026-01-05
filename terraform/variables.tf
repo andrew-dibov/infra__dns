@@ -28,12 +28,15 @@ variable "security_group_bastion_name" {
   default = "dns-bastion-sg"
 }
 
+variable "security_group_monitoring_name" {
+  type    = string
+  default = "dns-monitoring-sg"
+}
+
 variable "security_group_internal_name" {
   type    = string
   default = "dns-internal-sg"
 }
-
-# ---
 
 variable "platform_id" {
   type    = string
