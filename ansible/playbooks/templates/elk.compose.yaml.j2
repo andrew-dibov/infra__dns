@@ -1,6 +1,6 @@
 services:
   elasticsearch:
-    image: {{ elasticsearch_img }}
+    image: {{ elko__elasticsearch_img }}
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
@@ -8,8 +8,8 @@ services:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - indices.lifecycle.poll_interval=1m
     volumes:
-      - {{ elastic_data_dir }}:/usr/share/elasticsearch/data
-      - {{ elastic_conf_dir }}/elasticsearch.yaml:/usr/share/elasticsearch/config/elasticsearch.yaml
+      - {{ elko__data_dir }}:/usr/share/elasticsearch/data
+      - {{ elko__cfgs_dir }}/elasticsearch.yaml:/usr/share/elasticsearch/config/elasticsearch.yaml
     ports:
       - "9200:9200"
     networks:
@@ -17,11 +17,11 @@ services:
     restart: unless-stopped
   
   logstash:
-    image: {{ logstash_img }}
+    image: {{ elko__logstash_img }}
     container_name: logstash
     volumes:
-      - {{ elastic_conf_dir }}/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-      - {{ elastic_templates_dir }}:/usr/share/logstash/templates:ro
+      - {{ elko__cfgs_dir }}/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - {{ elko__tpls_dir }}:/usr/share/logstash/templates:ro
     environment:
       - LS_JAVA_OPTS=-Xms256m -Xmx256m
       - XPACK_MONITORING_ENABLED=false
@@ -35,7 +35,7 @@ services:
       - elasticsearch
   
   kibana:
-    image: {{ kibana_img }}
+    image: {{ elko__kibana_img }}
     container_name: kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200

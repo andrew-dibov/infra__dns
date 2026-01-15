@@ -1,0 +1,47 @@
+---
+- name: "DNS : STUB"
+  become: true
+  hosts: stub
+
+  vars:
+    ct__name: "infra-stub"
+    ct__repo: "andrewdibov/infra-dns:latest"
+    en__doms: "www.subdomain.domain,wwa.subdomain.domain,wwb.subdomain.domain"
+
+  vars_files:
+    - "../variables/common.yaml"
+    - "../variables/terraform.yaml"
+
+  tasks:
+    - name: "STUB : check ct : {{ ct__name }}"
+      ansible.builtin.shell: |
+        docker ps -a --filter "name={{ ct__name }}" --format "{{ '{{.Names}}' }}"
+      register: ct
+      changed_when: false
+
+    - name: "STUB : stop ct : {{ ct__name }}"
+      ansible.builtin.shell: |
+        docker stop {{ ct__name }}
+      changed_when: false
+      when: ct.stdout == ct__name
+
+    - name: "STUB : remove ct : {{ ct__name }}"
+      ansible.builtin.shell: |
+        docker rm {{ ct__name }}
+      changed_when: false
+      when: ct.stdout == ct__name
+
+    - name: "STUB : update img : {{ ct__repo }}"
+      ansible.builtin.shell: |
+        docker pull {{ ct__repo }}
+      changed_when: false
+      when: ct.stdout == ct__name
+
+    - name: "STUB : run ct : {{ ct__name }}"
+      ansible.builtin.shell: |
+        docker run -dit \
+          --dns {{ tf__recr_ip }} \
+          --env DOMAINS={{ en__doms }} \
+          --name {{ ct__name }} \
+          {{ ct__repo }}
+      changed_when: false

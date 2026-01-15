@@ -1,0 +1,169 @@
+---
+- name: "ELKO"
+  become: true
+  hosts: elko
+
+  vars:
+    elko__data_dir: "{{ elko__dir }}/data"
+    elko__cfgs_dir: "{{ elko__dir }}/conf"
+    elko__tpls_dir: "{{ elko__dir }}/templates"
+
+  vars_files:
+    - "../variables/common.yaml"
+    - "../variables/terraform.yaml"
+
+  tasks:
+    - name: "ELKO : prepare host"
+      block:
+
+        - name: "ELKO : check dir : {{ elko__dir }}"
+          ansible.builtin.stat:
+            path: "{{ elko__dir }}"
+          register: dir
+
+        - name: "ELKO : if exists : {{ elko__dir }}"
+          when: dir.stat.exists and dir.stat.isdir
+          block:
+
+            - name: "ELKO : check compose : {{ elko__dir }}"
+              community.docker.docker_compose_v2:
+                project_src: "{{ elko__dir }}"
+                state: present
+              register: cmps_state
+
+            - name: "ELKO : stop compose : {{ elko__dir }}"
+              community.docker.docker_compose_v2:
+                project_src: "{{ elko__dir }}"
+                state: absent
+              when: cmps_state is not failed
+
+            - name: "ELKO : ensure dir : {{ elko__dir }}"
+              ansible.builtin.file:
+                dest: "{{ item }}"
+                state: directory
+                owner: debian
+                group: docker
+                mode: '0755'
+              loop:
+                - "{{ elko__cfgs_dir }}"
+                - "{{ elko__tpls_dir }}"
+
+            - name: "ELKO : remove dir : {{ elko__data_dir }}"
+              ansible.builtin.file:
+                path: "{{ elko__data_dir }}"
+                state: absent
+
+            - name: "ELKO : recreate dir : {{ elko__data_dir }}"
+              ansible.builtin.file:
+                path: "{{ elko__data_dir }}"
+                state: directory
+                owner: 1000
+                group: 1000
+                mode: '0755'
+
+        - name: "ELKO : if not exist : {{ elko__dir }}"
+          when: not dir.stat.exists
+          block:
+
+            - name: "ELKO : create dir : {{ elko__dir }}"
+              ansible.builtin.file:
+                dest: "{{ item }}"
+                state: directory
+                owner: debian
+                group: docker
+                mode: '0755'
+              loop:
+                - "{{ elko__dir }}"
+                - "{{ elko__data_dir }}"
+                - "{{ elko__cfgs_dir }}"
+                - "{{ elko__tpls_dir }}"
+
+            - name: "ELKO : set permissions : {{ elko__data_dir }}"
+              ansible.builtin.file:
+                path: "{{ elko__data_dir }}"
+                owner: 1000
+                group: 1000
+                mode: '0755'
+
+            - name: "ELKO : set max_map_count"
+              ansible.posix.sysctl:
+                name: vm.max_map_count
+                state: present
+                value: '262144'
+                reload: true
+                sysctl_set: true
+
+    - name: "ELKO : deploy stack"
+      block:
+
+        - name: "ELKO : deploy docker-compose.yaml"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/elk.compose.yaml.j2"
+            dest: "{{ elko__dir }}/docker-compose.yaml"
+            owner: debian
+            group: docker
+            mode: '0644'
+
+        - name: "ELKO : deploy elasticsearch.yaml"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/elk.elasticsearch.yaml.j2"
+            dest: "{{ elko__cfgs_dir }}/elasticsearch.yaml"
+            owner: debian
+            group: docker
+            mode: '0644'
+
+        - name: "ELKO : deploy logstash.conf"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/elk.logstash.conf.j2"
+            dest: "{{ elko__cfgs_dir }}/logstash.conf"
+            owner: debian
+            group: docker
+            mode: '0644'
+
+        - name: "ELKO : deploy logstash.json"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/elk.logstash.json.j2"
+            dest: "{{ elko__tpls_dir }}/logstash.json"
+            owner: debian
+            group: docker
+            mode: '0644'
+
+    - name: "ELKO : init stack"
+      block:
+
+        - name: "ELKO : start compose : {{ elko__dir }}"
+          community.docker.docker_compose_v2:
+            project_src: "{{ elko__dir }}"
+            state: present
+            recreate: always
+
+        - name: "ELKO : wait kibana"
+          ansible.builtin.uri:
+            url: "http://{{ tf__elko_ip }}:5601/api/status"
+            status_code: 200
+            timeout: 25
+          register: kbn_state
+          until: kbn_state.status == 200
+          ignore_errors: true
+          retries: 25
+          delay: 5
+
+        - name: "ELKO : set kibana dataview"
+          ansible.builtin.uri:
+            url: "http://{{ tf__elko_ip }}:5601/api/data_views/data_view"
+            method: POST
+            body_format: json
+            headers:
+              kbn-xsrf: "true"
+              Content-Type: "application/json"
+            body:
+              data_view:
+                title: "dns-*"
+                name: "dns-dataview"
+                timeFieldName: "@timestamp"
+            status_code: 200
+            timeout: 25
+          register: kbn_dataview
+          until: kbn_dataview.status == 200
+          retries: 5
+          delay: 5

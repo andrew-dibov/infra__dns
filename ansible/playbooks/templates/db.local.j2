@@ -1,0 +1,12 @@
+$TTL {{ db__ttl }}
+
+@ IN SOA localhost. root.localhost. (
+  1
+  {{ db__ref }}
+  {{ db__ret }}
+  {{ db__exp }}
+  {{ db__ttl }}
+)
+
+@ IN NS localhost.
+@ IN A 127.0.0.1

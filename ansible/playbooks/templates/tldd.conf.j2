@@ -14,35 +14,40 @@ options {
 
 zone "{{ zone }}" {
   type master;
-  file "{{ zone_path }}/db.root";
+  file "{{ zone_cfgs__path }}/db.tldd";
 
   allow-transfer { none; };
   allow-update { none; };
 };
 
+zone "{{ root_zone }}" {
+  type hint;
+  file "{{ zone_cfgs__path }}/db.root.hints";
+};
+
 zone "localhost" {
   type master;
-  file "{{ zone_path }}/db.local";
+  file "{{ zone_cfgs__path }}/db.local";
 };
 
 zone "0.in-addr.arpa" {
   type master;
-  file "{{ zone_path }}/db.0";
+  file "{{ zone_cfgs__path }}/db.0";
 };
 
 zone "127.in-addr.arpa" {
   type master;
-  file "{{ zone_path }}/db.127";
+  file "{{ zone_cfgs__path }}/db.127";
 };
 
 zone "255.in-addr.arpa" {
   type master;
-  file "{{ zone_path }}/db.255";
+  file "{{ zone_cfgs__path }}/db.255";
 };
 
 logging {
   channel logs {
-    file "{{ bind_logs_path }}/{{ bind_logs_file }}" versions 10 size 20m;
+    file "{{ bind_logs__path }}/{{ bind_logs__file }}" versions 10 size 20m;
 
     print-time yes;
     print-category yes;

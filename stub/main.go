@@ -20,8 +20,6 @@ func main() {
 		doms = []string{
 			"google.com",
 			"github.com",
-			"youtube.com",
-			"gulllulululululululu.com",
 		}
 	} else {
 		doms = strings.Split(domsEnv, ",")
@@ -34,7 +32,7 @@ func main() {
 		fmt.Println(time.Now().Format(time.RFC3339), " : ", req)
 		fmt.Println()
 
-		for i := 1; i <= randInt(25); i++ {
+		for i := 1; i <= randInt(50); i++ {
 			fmt.Print("REQ : ", i, " : ")
 
 			domain := doms[randInt(len(doms))]
@@ -61,6 +59,6 @@ func main() {
 		}
 
 		fmt.Println()
-		time.Sleep(time.Duration((time.Now().Second()%5)+1) * time.Second)
+		time.Sleep(time.Duration((time.Now().Second()%3)+1) * time.Second)
 	}
 }

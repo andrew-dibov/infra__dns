@@ -1,0 +1,184 @@
+---
+- name: "DNS : AUTH"
+  become: true
+  hosts:
+    - au_a
+    - au_b
+
+  vars:
+    root_zone: "."
+    zone: "subdomain.domain"
+
+    db__root_ns: "ns.root."
+    db__soa_mname: "ns.au-a.subdomain.domain."
+    db__soa_rname: "admin.subdomain.domain."
+    db__primary_ns: "ns.au-a.subdomain.domain."
+    db__secondary_ns: "ns.au-b.subdomain.domain."
+    db__www_record: "www"
+    db__www_record_a: "wwa"
+    db__www_record_b: "wwb"
+
+  vars_files:
+    - "../variables/common.yaml"
+    - "../variables/terraform.yaml"
+
+  handlers:
+    - name: "AUTH : check named.conf"
+      ansible.builtin.command:
+        cmd: "named-checkconf {{ bind_cfgs__path }}/named.conf"
+      register: cfg_stat
+      failed_when: cfg_stat.rc != 0
+      changed_when: false
+
+    - name: "AUTH : check db.auth"
+      ansible.builtin.command:
+        cmd: "named-checkzone {{ zone }} {{ zone_cfgs__path }}/db.auth"
+      register: zone_stat
+      failed_when: zone_stat.rc != 0
+      changed_when: false
+
+    - name: "AUTH : reload and start bind"
+      ansible.builtin.systemd:
+        name: bind9
+        state: restarted
+        enabled: true
+        daemon_reload: true
+
+  tasks:
+    - name: "AUTH : get pkgs"
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: "AUTH : bind installed"
+      when: "'bind9' in ansible_facts.packages"
+
+      block:
+        - name: "AUTH : stop bind"
+          ansible.builtin.systemd:
+            name: bind9
+            state: stopped
+
+        - name: "AUTH : recreate named.conf"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/auth.conf.j2"
+            dest: "{{ bind_cfgs__path }}/named.conf"
+            owner: root
+            group: bind
+            mode: '0644'
+          notify: "AUTH : check named.conf"
+
+        - name: "AUTH : ensure dir : {{ zone_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ zone_cfgs__path }}"
+            state: directory
+            owner: bind
+            group: bind
+            mode: '0755'
+
+        - name: "AUTH : recreate zones"
+          ansible.builtin.template:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            owner: root
+            group: bind
+            mode: '0644'
+          loop:
+            - { src: "{{ tpls__path }}/db.auth.j2", dest: "{{ zone_cfgs__path }}/db.auth" }
+            - { src: "{{ tpls__path }}/db.root.hints.j2", dest: "{{ zone_cfgs__path }}/db.root.hints" }
+            - { src: "{{ tpls__path }}/db.local.j2", dest: "{{ zone_cfgs__path }}/db.local" }
+            - { src: "{{ tpls__path }}/db.0.j2", dest: "{{ zone_cfgs__path }}/db.0" }
+            - { src: "{{ tpls__path }}/db.127.j2", dest: "{{ zone_cfgs__path }}/db.127" }
+            - { src: "{{ tpls__path }}/db.255.j2", dest: "{{ zone_cfgs__path }}/db.255" }
+          notify: "AUTH : check db.auth"
+
+        - name: "AUTH : ensure dir : {{ bind_logs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}"
+            state: directory
+            owner: root
+            group: bind
+            mode: '0755'
+
+        - name: "AUTH : recreate file : {{ bind_logs__file }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}/{{ bind_logs__file }}"
+            state: touch
+            owner: bind
+            group: bind
+            mode: '0640'
+          notify: "AUTH : reload and start bind"
+
+    - name: "AUTH : bind not installed"
+      when: "'bind9' not in ansible_facts.packages"
+
+      block:
+        - name: "AUTH : install bind"
+          ansible.builtin.apt:
+            update_cache: true
+            state: present
+            name:
+              - bind9
+              - bind9utils
+
+        - name: "AUTH : remove dir : {{ bind_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_cfgs__path }}"
+            state: absent
+
+        - name: "AUTH : recreate dir : {{ bind_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_cfgs__path }}"
+            state: directory
+            owner: root
+            group: bind
+            mode: '0755'
+
+        - name: "AUTH : create named.conf"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/auth.conf.j2"
+            dest: "{{ bind_cfgs__path }}/named.conf"
+            owner: root
+            group: bind
+            mode: '0644'
+          notify: "AUTH : check named.conf"
+
+        - name: "AUTH : create dir : {{ zone_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ zone_cfgs__path }}"
+            state: directory
+            owner: bind
+            group: bind
+            mode: '0755'
+
+        - name: "AUTH : create zones"
+          ansible.builtin.template:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            owner: root
+            group: bind
+            mode: '0644'
+          loop:
+            - { src: "{{ tpls__path }}/db.auth.j2", dest: "{{ zone_cfgs__path }}/db.auth" }
+            - { src: "{{ tpls__path }}/db.root.hints.j2", dest: "{{ zone_cfgs__path }}/db.root.hints" }
+            - { src: "{{ tpls__path }}/db.local.j2", dest: "{{ zone_cfgs__path }}/db.local" }
+            - { src: "{{ tpls__path }}/db.0.j2", dest: "{{ zone_cfgs__path }}/db.0" }
+            - { src: "{{ tpls__path }}/db.127.j2", dest: "{{ zone_cfgs__path }}/db.127" }
+            - { src: "{{ tpls__path }}/db.255.j2", dest: "{{ zone_cfgs__path }}/db.255" }
+          notify: "AUTH : check db.auth"
+
+        - name: "AUTH : create dir : {{ bind_logs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}"
+            state: directory
+            owner: root
+            group: bind
+            mode: '0755'
+
+        - name: "AUTH : create file : {{ bind_logs__file }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}/{{ bind_logs__file }}"
+            state: touch
+            owner: bind
+            group: bind
+            mode: '0640'
+          notify: "AUTH : reload and start bind"

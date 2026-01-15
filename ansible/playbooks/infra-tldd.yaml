@@ -1,0 +1,180 @@
+---
+- name: "DNS : TLDD"
+  become: true
+  hosts: tldd
+
+  vars:
+    root_zone: "."
+    zone: "domain"
+
+    db__root_ns: "ns.root."
+    db__soa_mname: "ns.domain."
+    db__soa_rname: "admin.domain."
+    db__auth_domain: "subdomain"
+    db__auth_ns_server_a: "ns.auth-a.subdomain"
+    db__auth_ns_server_b: "ns.auth-b.subdomain"
+
+  vars_files:
+    - "../variables/common.yaml"
+    - "../variables/terraform.yaml"
+
+  handlers:
+    - name: "TLDD : check named.conf"
+      ansible.builtin.command:
+        cmd: "named-checkconf {{ bind_cfgs__path }}/named.conf"
+      register: cfg_stat
+      failed_when: cfg_stat.rc != 0
+      changed_when: false
+
+    - name: "TLDD : check db.tldd"
+      ansible.builtin.command:
+        cmd: "named-checkzone {{ zone }} {{ zone_cfgs__path }}/db.tldd"
+      register: zone_stat
+      failed_when: zone_stat.rc != 0
+      changed_when: false
+
+    - name: "TLDD : reload and start bind"
+      ansible.builtin.systemd:
+        name: bind9
+        state: restarted
+        enabled: true
+        daemon_reload: true
+
+  tasks:
+    - name: "TLDD : get pkgs"
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: "TLDD : bind installed"
+      when: "'bind9' in ansible_facts.packages"
+
+      block:
+        - name: "TLDD : stop bind"
+          ansible.builtin.systemd:
+            name: bind9
+            state: stopped
+
+        - name: "TLDD : recreate named.conf"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/tldd.conf.j2"
+            dest: "{{ bind_cfgs__path }}/named.conf"
+            owner: root
+            group: bind
+            mode: '0644'
+          notify: "TLDD : check named.conf"
+
+        - name: "TLDD : ensure dir : {{ zone_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ zone_cfgs__path }}"
+            state: directory
+            owner: bind
+            group: bind
+            mode: '0755'
+
+        - name: "TLDD : recreate zones"
+          ansible.builtin.template:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            owner: root
+            group: bind
+            mode: '0644'
+          loop:
+            - { src: "{{ tpls__path }}/db.tldd.j2", dest: "{{ zone_cfgs__path }}/db.tldd" }
+            - { src: "{{ tpls__path }}/db.root.hints.j2", dest: "{{ zone_cfgs__path }}/db.root.hints" }
+            - { src: "{{ tpls__path }}/db.local.j2", dest: "{{ zone_cfgs__path }}/db.local" }
+            - { src: "{{ tpls__path }}/db.0.j2", dest: "{{ zone_cfgs__path }}/db.0" }
+            - { src: "{{ tpls__path }}/db.127.j2", dest: "{{ zone_cfgs__path }}/db.127" }
+            - { src: "{{ tpls__path }}/db.255.j2", dest: "{{ zone_cfgs__path }}/db.255" }
+          notify: "TLDD : check db.tldd"
+
+        - name: "TLDD : ensure dir : {{ bind_logs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}"
+            state: directory
+            owner: root
+            group: bind
+            mode: '0755'
+
+        - name: "TLDD : recreate file : {{ bind_logs__file }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}/{{ bind_logs__file }}"
+            state: touch
+            owner: bind
+            group: bind
+            mode: '0640'
+          notify: "TLDD : reload and start bind"
+
+    - name: "TLDD : bind not installed"
+      when: "'bind9' not in ansible_facts.packages"
+
+      block:
+        - name: "TLDD : install bind"
+          ansible.builtin.apt:
+            update_cache: true
+            state: present
+            name:
+              - bind9
+              - bind9utils
+
+        - name: "TLDD : remove dir : {{ bind_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_cfgs__path }}"
+            state: absent
+
+        - name: "TLDD : recreate dir : {{ bind_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_cfgs__path }}"
+            state: directory
+            owner: root
+            group: bind
+            mode: '0755'
+
+        - name: "TLDD : create named.conf"
+          ansible.builtin.template:
+            src: "{{ tpls__path }}/tldd.conf.j2"
+            dest: "{{ bind_cfgs__path }}/named.conf"
+            owner: root
+            group: bind
+            mode: '0644'
+          notify: "TLDD : check named.conf"
+
+        - name: "TLDD : create dir : {{ zone_cfgs__path }}"
+          ansible.builtin.file:
+            path: "{{ zone_cfgs__path }}"
+            state: directory
+            owner: bind
+            group: bind
+            mode: '0755'
+
+        - name: "TLDD : create zones"
+          ansible.builtin.template:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            owner: root
+            group: bind
+            mode: '0644'
+          loop:
+            - { src: "{{ tpls__path }}/db.tldd.j2", dest: "{{ zone_cfgs__path }}/db.tldd" }
+            - { src: "{{ tpls__path }}/db.root.hints.j2", dest: "{{ zone_cfgs__path }}/db.root.hints" }
+            - { src: "{{ tpls__path }}/db.local.j2", dest: "{{ zone_cfgs__path }}/db.local" }
+            - { src: "{{ tpls__path }}/db.0.j2", dest: "{{ zone_cfgs__path }}/db.0" }
+            - { src: "{{ tpls__path }}/db.127.j2", dest: "{{ zone_cfgs__path }}/db.127" }
+            - { src: "{{ tpls__path }}/db.255.j2", dest: "{{ zone_cfgs__path }}/db.255" }
+          notify: "TLDD : check db.tldd"
+
+        - name: "TLDD : create dir : {{ bind_logs__path }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}"
+            state: directory
+            owner: root
+            group: bind
+            mode: '0755'
+
+        - name: "TLDD : create file : {{ bind_logs__file }}"
+          ansible.builtin.file:
+            path: "{{ bind_logs__path }}/{{ bind_logs__file }}"
+            state: touch
+            owner: bind
+            group: bind
+            mode: '0640'
+          notify: "TLDD : reload and start bind"

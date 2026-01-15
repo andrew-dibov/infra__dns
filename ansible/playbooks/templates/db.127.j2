@@ -1,11 +1,11 @@
-$TTL {{ ttl }}
+$TTL {{ db__ttl }}
 
 @ IN SOA localhost. root.localhost. (
   1
-  {{ ref }}
-  {{ ret }}
-  {{ exp }}
-  {{ ttl }}
+  {{ db__ref }}
+  {{ db__ret }}
+  {{ db__exp }}
+  {{ db__ttl }}
 )
 
 @ IN NS localhost.

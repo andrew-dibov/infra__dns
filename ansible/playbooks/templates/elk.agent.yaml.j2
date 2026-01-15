@@ -2,14 +2,14 @@ sources:
   bind:
     type: file
     include:
-      - "{{ bind_logs_path }}/{{ bind_logs_file }}"
+      - "{{ bind_logs__path }}/{{ bind_logs__file }}"
     read_from: beginning
 
 sinks:
   to_logstash:
     type: socket
     inputs: ["bind"]
-    address: "{{ towr_ip }}:5044"
+    address: "{{ tf__elko_ip }}:5044"
     mode: tcp
     encoding:
       codec: json

@@ -1,0 +1,24 @@
+$TTL {{ db__ttl }}
+
+@ IN SOA {{ db__soa_mname }} {{ db__soa_rname }} (
+  {{ db__num }}
+  {{ db__ref }}
+  {{ db__ret }}
+  {{ db__exp }}
+  {{ db__ttl }}
+)
+
+@ IN NS {{ db__primary_ns }}
+@ IN NS {{ db__secondary_ns }}
+
+{{ db__primary_ns }} IN A {{ tf__au_a_ip }}
+{{ db__secondary_ns }} IN A {{ tf__au_b_ip }}
+
+@ IN A {{ tf__au_a_ip }}
+@ IN A {{ tf__au_b_ip }}
+
+{{ db__www_record }} IN A {{ tf__au_a_ip }}
+{{ db__www_record }} IN A {{ tf__au_b_ip }}
+
+{{ db__www_record_a }} IN A {{ tf__au_a_ip }}
+{{ db__www_record_b }} IN A {{ tf__au_b_ip }}

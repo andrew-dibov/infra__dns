@@ -1,28 +1,20 @@
 ---
-# ansible
-templates_path: "templates"
+tpls__path: "templates"
 
-# bind
-bind_path: "/etc/bind"
-zone_path: "/etc/bind/zone"
+bind_cfgs__path: "/etc/bind"
+zone_cfgs__path: "/etc/bind/zone"
+bind_logs__path: "/var/log/named"
+bind_logs__file: "named.log"
 
-bind_logs_path: "/var/log/named"
-bind_logs_file: "named.log"
+db__ttl: "3"
+db__num: "{{ ansible_date_time.date | replace('-', '') }}01"
+db__ref: "3600"
+db__ret: "1800"
+db__exp: "3600"
 
-# dns
-ttl: "2"
-num: "{{ ansible_date_time.date | replace('-', '') }}01"
-ref: "3600"
-ret: "1800"
-exp: "3600"
+agnt__path: "/etc/vector"
 
-# elasticsearch
-towr_root_dir: "/opt/towr"
-
-elasticsearch_img: "elastic/elasticsearch:9.2.3"
-logstash_img: "elastic/logstash:9.1.9"
-kibana_img: "elastic/kibana:9.1.9"
-filebeat_img: "elastic/filebeat:8.19.9"
-
-# vector
-vector_path: "/etc/vector"
+elko__dir: "/opt/elko"
+elko__elasticsearch_img: "elastic/elasticsearch:9.2.3"
+elko__logstash_img: "elastic/logstash:9.1.9"
+elko__kibana_img: "elastic/kibana:9.1.9"

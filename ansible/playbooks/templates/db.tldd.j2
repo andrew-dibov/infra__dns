@@ -1,0 +1,18 @@
+$TTL {{ db__ttl }}
+
+@ IN SOA {{ db__soa_mname }} {{ db__soa_rname }} (
+  {{ db__num }}
+  {{ db__ref }}
+  {{ db__ret }}
+  {{ db__exp }}
+  {{ db__ttl }}
+)
+
+@ IN NS {{ db__soa_mname }}
+{{ db__soa_mname }} IN A {{ tf__tldd_ip }}
+
+{{ db__auth_domain }} IN NS {{ db__auth_ns_server_a }}
+{{ db__auth_domain }} IN NS {{ db__auth_ns_server_b }}
+
+{{ db__auth_ns_server_a }} IN A {{ tf__au_a_ip }}
+{{ db__auth_ns_server_b }} IN A {{ tf__au_b_ip }}
